@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:wisdom_wings/main.dart';
 import 'package:wisdom_wings/question.dart';
+import 'package:wisdom_wings/review_page.dart';
 
 class ChallengePage extends StatefulWidget {
   final String categoryName;
@@ -17,8 +18,10 @@ class _ChallengePageState extends State<ChallengePage> {
   int experience = 0;
 
   List<Question> questionList = [];
+  List<int> userAnswerResultList = [];
 
   List<Map<String, dynamic>> spaceQuestions = [];
+  bool isAnswerSelected = false;
 
   int? selectedAnswer;
 
@@ -63,6 +66,7 @@ class _ChallengePageState extends State<ChallengePage> {
       );
 
       questionList.add(question);
+      userAnswerResultList.add(-1);
     });
 
     // Print the generated question list
@@ -83,11 +87,14 @@ class _ChallengePageState extends State<ChallengePage> {
       setState(() {
         showAnswerStatus = true;
         answerStatus[choiceIndex] = true;
+        userAnswerResultList[currentQuestionIndex] = choiceIndex;
 
         if (choiceIndex == questionList[currentQuestionIndex].correctAnswer) {
           // Correct answer selected
           experience += 1;
         }
+
+        isAnswerSelected = true; // Set to true when user selects an answer
       });
     }
   }
@@ -116,7 +123,16 @@ class _ChallengePageState extends State<ChallengePage> {
     setState(() {
       showAnswerStatus = false;
       answerStatus = List.filled(4, false);
+      isAnswerSelected = false;
     });
+  }
+
+  Widget _buildCompleteButtonText() {
+    if (currentQuestionIndex == questionList.length - 1) {
+      return Text('Challenge Complete');
+    } else {
+      return Text('Next Question');
+    }
   }
 
   @override
@@ -151,48 +167,54 @@ class _ChallengePageState extends State<ChallengePage> {
                 margin: const EdgeInsets.fromLTRB(16.0, 0.0, 16.0, 16.0),
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () {
-                    // Check if the selected answer is correct
-                    // if (selectedAnswer ==
-                    //     questionList[currentQuestionIndex].correctAnswer) {
-                    //   setState(() {
-                    //     experience += 1;
-                    //   });
-                    // }
+                  onPressed: isAnswerSelected
+                      ? () {
+                          // Move to the next question or show the results if all questions are answered
+                          if (currentQuestionIndex < questionList.length - 1) {
+                            _resetAnswerStatus();
+                            setState(() {
+                              currentQuestionIndex += 1;
+                              selectedAnswer =
+                                  null; // Reset selected answer for the next question
+                            });
+                          } else {
+                            // Display a dialog with the total experience when all questions are answered
+                            showDialog(
+                              context: context,
+                              builder: (BuildContext context) {
+                                return AlertDialog(
+                                  title: Text('Challenge Completed'),
+                                  content:
+                                      Text('Total Experience: $experience'),
+                                  actions: <Widget>[
+                                    TextButton(
+                                      onPressed: () {
+                                        Navigator.of(context).pop();
+                                        Navigator.of(context)
+                                            .pop(); // Close the challenge page
 
-                    _resetAnswerStatus();
-
-                    // Move to the next question or show the results if all questions are answered
-                    if (currentQuestionIndex < questionList.length - 1) {
-                      setState(() {
-                        currentQuestionIndex += 1;
-                        selectedAnswer =
-                            null; // Reset selected answer for the next question
-                      });
-                    } else {
-                      // Display a dialog with the total experience when all questions are answered
-                      showDialog(
-                        context: context,
-                        builder: (BuildContext context) {
-                          return AlertDialog(
-                            title: Text('Challenge Completed'),
-                            content: Text('Total Experience: $experience'),
-                            actions: <Widget>[
-                              TextButton(
-                                onPressed: () {
-                                  Navigator.of(context).pop();
-                                  Navigator.of(context)
-                                      .pop(); // Close the challenge page
-                                },
-                                child: Text('OK'),
-                              ),
-                            ],
-                          );
-                        },
-                      );
-                    }
-                  },
-                  child: Text('Next Question'),
+                                        // Navigate to the ReviewPage to review answers
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) => ReviewPage(
+                                              questionList: questionList,
+                                              userAnswerResults:
+                                                  userAnswerResultList,
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                      child: Text('View Results'),
+                                    ),
+                                  ],
+                                );
+                              },
+                            );
+                          }
+                        }
+                      : null, // Disable button if answer is not selected
+                  child: _buildCompleteButtonText(),
                 ),
               ),
             ),
