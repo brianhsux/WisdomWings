@@ -1,7 +1,10 @@
 import 'dart:convert';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 
 import 'category_page.dart';
 import 'challenge.dart';
@@ -41,6 +44,12 @@ class WelcomeApp extends StatelessWidget {
     await prefs.setString(jsonKey, jsonString);
   }
 
+  Future<void> _saveJsonString(String jsonString) async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    // final String jsonString = json.encode(data);
+    await prefs.setString(jsonKey, jsonString);
+  }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -63,7 +72,7 @@ class _WelcomePageState extends State<WelcomePage> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance?.addPostFrameCallback((_) async {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       // Prepare your JSON data here
       final Map<String, dynamic> jsonData = {
         "categories": [
@@ -236,7 +245,8 @@ class _WelcomePageState extends State<WelcomePage> {
       };
 
       // Call the _saveJsonData method to save the JSON data
-      await WelcomeApp()._saveJsonData(jsonData);
+      // await WelcomeApp()._saveJsonData(jsonData);
+      _initCloudFirestore(jsonData);
 
       // Navigate to the CategoryPage
       // Navigator.push(
@@ -249,6 +259,89 @@ class _WelcomePageState extends State<WelcomePage> {
         dataSaved = true;
       });
     });
+  }
+
+  void _insertData(Map<String, dynamic> sampleJson) {
+    // Get a reference to the Firestore instance
+    FirebaseFirestore firestore = FirebaseFirestore.instance;
+
+    // Replace 'sampleJson' with your actual JSON data
+    // Map<String, dynamic> sampleJson = {
+    //   // Your JSON data here...
+    // };
+
+    // Add the entire JSON data to Firestore
+    firestore.collection('data').doc('sampleData').set(sampleJson);
+  }
+
+  void fetchData() async {
+    // Call _retrieveData() function and wait for the result
+    Map<String, dynamic>? data = await _retrieveData();
+
+    if (data != null) {
+      // Process the retrieved data
+      developer.log("Retrieved data: " + data.toString());
+      String jsonData = jsonEncode(data);
+      await WelcomeApp()._saveJsonString(jsonData);
+    } else {
+      // Handle case where data is null or not retrieved
+      print('Failed to retrieve data');
+    }
+  }
+
+  Future<Map<String, dynamic>?> _retrieveData() async {
+    // Get a reference to the Firestore instance
+    FirebaseFirestore firestore = FirebaseFirestore.instance;
+
+    try {
+      // Retrieve the data from Firestore
+      DocumentSnapshot documentSnapshot =
+          await firestore.collection('data').doc('sampleData').get();
+
+      if (documentSnapshot.exists) {
+        // Document exists in Firestore
+        Map<String, dynamic> data =
+            documentSnapshot.data() as Map<String, dynamic>;
+        return data;
+      } else {
+        // Document does not exist in Firestore
+        print('Document does not exist');
+        return null;
+      }
+    } catch (error) {
+      // Error handling
+      print('Error retrieving data: $error');
+      return null;
+    }
+  }
+
+  Future<void> _initCloudFirestore(Map<String, dynamic> sampleJson) async {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+
+    // FirebaseFirestore firebaseFirestore = FirebaseFirestore.instance;
+    // _insertData(sampleJson);
+
+    fetchData();
+
+    // // Create a new user with a first and last name
+    // final user = <String, dynamic>{
+    //   "first": "Alan",
+    //   "middle": "Mathison",
+    //   "last": "Turing",
+    //   "born": 1912
+    // };
+
+    // // Add a new document with a generated ID
+    // db.collection("users").add(user).then((DocumentReference doc) =>
+    //     print('DocumentSnapshot added with ID: ${doc.id}'));
+
+    // await db.collection("users").get().then((event) {
+    //   for (var doc in event.docs) {
+    //     print("${doc.id} => ${doc.data()}");
+    //   }
+    // });
   }
 
   @override
